@@ -48,6 +48,8 @@ const (
 )
 
 var (
+	workers                int
+	maxDelay               int
 	kubeconfig             string
 	kubeURL                string
 	importerImage          string
@@ -88,6 +90,8 @@ type ControllerEnvs struct {
 func init() {
 	// flags
 	flag.StringVar(&kubeURL, "server", "", "(Optional) URL address of a remote api server.  Do not set for local clusters.")
+	flag.IntVar(&workers, "workers", 1, "Controller Concurrent")
+	flag.IntVar(&maxDelay, "max_delay", 3, "Queue max delay")
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -225,12 +229,12 @@ func start() {
 		os.Exit(1)
 	}
 	if _, err := dvc.NewPvcCloneController(ctx, mgr, log,
-		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels); err != nil {
+		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels, workers); err != nil {
 		klog.Errorf("Unable to setup datavolume pvc clone controller: %v", err)
 		os.Exit(1)
 	}
 	if _, err := dvc.NewSnapshotCloneController(ctx, mgr, log,
-		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels); err != nil {
+		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels, workers); err != nil {
 		klog.Errorf("Unable to setup datavolume snapshot clone controller: %v", err)
 		os.Exit(1)
 	}
@@ -244,7 +248,8 @@ func start() {
 		os.Exit(1)
 	}
 
-	if _, err := controller.NewCloneController(mgr, log, clonerImage, pullPolicy, verbose, uploadClientCertGenerator, uploadServerBundleFetcher, getTokenPublicKey(), installerLabels); err != nil {
+	if _, err := controller.NewCloneController(mgr, log, clonerImage, pullPolicy, verbose, uploadClientCertGenerator,
+		uploadServerBundleFetcher, getTokenPublicKey(), installerLabels, workers); err != nil {
 		klog.Errorf("Unable to setup clone controller: %v", err)
 		os.Exit(1)
 	}
@@ -280,7 +285,8 @@ func start() {
 		klog.Errorf("Unable to setup upload populator: %v", err)
 		os.Exit(1)
 	}
-	if _, err := populators.NewClonePopulator(ctx, mgr, log, clonerImage, pullPolicy, installerLabels, getTokenPublicKey()); err != nil {
+	if _, err := populators.NewClonePopulator(ctx, mgr, log, clonerImage, pullPolicy, installerLabels,
+		getTokenPublicKey(), workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup clone populator: %v", err)
 		os.Exit(1)
 	}

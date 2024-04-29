@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -88,6 +89,7 @@ func NewClonePopulator(
 	pullPolicy string,
 	installerLabels map[string]string,
 	publicKey *rsa.PublicKey,
+	workers, maxDelay int,
 ) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &ClonePopulatorReconciler{
@@ -103,9 +105,15 @@ func NewClonePopulator(
 		multiTokenValidator: cc.NewMultiTokenValidator(publicKey),
 	}
 
+	if workers < 5 {
+		workers = 5
+	}
+
 	clonePopulator, err := controller.New(clonePopulatorName, mgr, controller.Options{
-		MaxConcurrentReconciles: 5,
+		MaxConcurrentReconciles: workers,
 		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err

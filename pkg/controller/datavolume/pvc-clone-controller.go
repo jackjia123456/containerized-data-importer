@@ -72,6 +72,7 @@ func NewPvcCloneController(
 	tokenPublicKey *rsa.PublicKey,
 	tokenPrivateKey *rsa.PrivateKey,
 	installerLabels map[string]string,
+	workers int,
 ) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &PvcCloneReconciler{
@@ -97,7 +98,8 @@ func NewPvcCloneController(
 	}
 
 	dataVolumeCloneController, err := controller.New(pvcCloneControllerName, mgr, controller.Options{
-		Reconciler: reconciler,
+		Reconciler:              reconciler,
+		MaxConcurrentReconciles: workers,
 	})
 	if err != nil {
 		return nil, err

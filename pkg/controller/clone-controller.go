@@ -81,7 +81,9 @@ func NewCloneController(mgr manager.Manager,
 	clientCertGenerator generator.CertGenerator,
 	serverCAFetcher fetcher.CertBundleFetcher,
 	apiServerKey *rsa.PublicKey,
-	installerLabels map[string]string) (controller.Controller, error) {
+	installerLabels map[string]string,
+	workers int,
+) (controller.Controller, error) {
 	reconciler := &CloneReconciler{
 		client:              mgr.GetClient(),
 		scheme:              mgr.GetScheme(),
@@ -96,7 +98,8 @@ func NewCloneController(mgr manager.Manager,
 		installerLabels:     installerLabels,
 	}
 	cloneController, err := controller.New("clone-controller", mgr, controller.Options{
-		Reconciler: reconciler,
+		Reconciler:              reconciler,
+		MaxConcurrentReconciles: workers,
 	})
 	if err != nil {
 		return nil, err
