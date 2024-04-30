@@ -50,6 +50,7 @@ const (
 var (
 	workers                int
 	maxDelay               int
+	enableLeader           bool
 	kubeconfig             string
 	kubeURL                string
 	importerImage          string
@@ -92,6 +93,7 @@ func init() {
 	flag.StringVar(&kubeURL, "server", "", "(Optional) URL address of a remote api server.  Do not set for local clusters.")
 	flag.IntVar(&workers, "workers", 1, "Controller Concurrent")
 	flag.IntVar(&maxDelay, "max_delay", 3, "Queue max delay")
+	flag.BoolVar(&enableLeader, "enable_leader", false, "Enable leader")
 	klog.InitFlags(nil)
 	flag.Parse()
 
@@ -174,7 +176,7 @@ func start() {
 	}
 
 	opts := manager.Options{
-		LeaderElection:             true,
+		LeaderElection:             enableLeader,
 		LeaderElectionNamespace:    namespace,
 		LeaderElectionID:           "cdi-controller-leader-election-helper",
 		LeaderElectionResourceLock: "leases",
