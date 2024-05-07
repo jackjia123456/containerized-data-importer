@@ -91,7 +91,7 @@ type ControllerEnvs struct {
 func init() {
 	// flags
 	flag.StringVar(&kubeURL, "server", "", "(Optional) URL address of a remote api server.  Do not set for local clusters.")
-	flag.IntVar(&workers, "workers", 1, "Controller Concurrent")
+	flag.IntVar(&workers, "workers", 5, "Controller Concurrent")
 	flag.IntVar(&maxDelay, "max_delay", 3, "Queue max delay")
 	flag.BoolVar(&enableLeader, "enable_leader", false, "Enable leader")
 	klog.InitFlags(nil)
@@ -222,7 +222,7 @@ func start() {
 	ctx := signals.SetupSignalHandler()
 
 	// TODO: Current DV controller had threadiness 3, should we do the same here, defaults to one thread.
-	if _, err := dvc.NewImportController(ctx, mgr, log, installerLabels); err != nil {
+	if _, err := dvc.NewImportController(ctx, mgr, log, installerLabels, workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup datavolume import controller: %v", err)
 		os.Exit(1)
 	}
@@ -251,7 +251,7 @@ func start() {
 	}
 
 	if _, err := controller.NewCloneController(mgr, log, clonerImage, pullPolicy, verbose, uploadClientCertGenerator,
-		uploadServerBundleFetcher, getTokenPublicKey(), installerLabels, workers); err != nil {
+		uploadServerBundleFetcher, getTokenPublicKey(), installerLabels, workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup clone controller: %v", err)
 		os.Exit(1)
 	}

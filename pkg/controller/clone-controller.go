@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
 	"reflect"
 	"strconv"
 	"strings"
@@ -82,7 +83,8 @@ func NewCloneController(mgr manager.Manager,
 	serverCAFetcher fetcher.CertBundleFetcher,
 	apiServerKey *rsa.PublicKey,
 	installerLabels map[string]string,
-	workers int,
+	workers, maxDelay int,
+
 ) (controller.Controller, error) {
 	reconciler := &CloneReconciler{
 		client:              mgr.GetClient(),
@@ -100,6 +102,8 @@ func NewCloneController(mgr manager.Manager,
 	cloneController, err := controller.New("clone-controller", mgr, controller.Options{
 		Reconciler:              reconciler,
 		MaxConcurrentReconciles: workers,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err
