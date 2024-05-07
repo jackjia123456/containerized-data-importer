@@ -198,7 +198,9 @@ func (r *ClonePopulatorReconciler) reconcilePending(ctx context.Context, log log
 
 	if vcs == nil {
 		log.V(3).Info("dataSourceRef does not exist, exiting")
-		return reconcile.Result{}, r.updateClonePhasePending(ctx, log, pvc)
+		return reconcile.Result{
+			RequeueAfter: 3 * time.Second,
+		}, r.updateClonePhasePending(ctx, log, pvc)
 	}
 
 	if err = r.validateCrossNamespace(pvc, vcs); err != nil {
@@ -207,7 +209,9 @@ func (r *ClonePopulatorReconciler) reconcilePending(ctx context.Context, log log
 
 	csr, err := r.getCloneStrategy(ctx, log, pvc, vcs)
 	if err != nil {
-		return reconcile.Result{}, r.updateClonePhaseError(ctx, log, pvc, err)
+		return reconcile.Result{
+			RequeueAfter: 3 * time.Second,
+		}, r.updateClonePhaseError(ctx, log, pvc, err)
 	}
 
 	if csr == nil {
@@ -281,6 +285,7 @@ func (r *ClonePopulatorReconciler) planAndExecute(ctx context.Context, log logr.
 		}
 
 		if result != nil {
+			result.RequeueAfter = 3 * time.Second
 			log.V(1).Info("currently in phase, returning", "name", p.Name(), "progress", progress)
 			return *result, r.updateClonePhase(ctx, log, pvc, p.Name(), statusResults)
 		}
@@ -317,7 +322,9 @@ func (r *ClonePopulatorReconciler) reconcileDone(ctx context.Context, log logr.L
 	log.V(1).Info("removing finalizer")
 	claimCpy := pvc.DeepCopy()
 	cc.RemoveFinalizer(claimCpy, cloneFinalizer)
-	return reconcile.Result{}, r.client.Update(ctx, claimCpy)
+	return reconcile.Result{
+		RequeueAfter: 3 * time.Second,
+	}, r.client.Update(ctx, claimCpy)
 }
 
 func (r *ClonePopulatorReconciler) initTargetClaim(ctx context.Context, log logr.Logger, pvc *corev1.PersistentVolumeClaim, vcs *cdiv1.VolumeCloneSource, csr *clone.ChooseStrategyResult) (bool, error) {
