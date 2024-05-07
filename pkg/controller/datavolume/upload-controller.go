@@ -19,6 +19,8 @@ package datavolume
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -75,6 +77,7 @@ func NewUploadController(
 	mgr manager.Manager,
 	log logr.Logger,
 	installerLabels map[string]string,
+	workers, maxDelay int,
 ) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &UploadReconciler{
@@ -90,7 +93,10 @@ func NewUploadController(
 	}
 
 	datavolumeController, err := controller.New(uploadControllerName, mgr, controller.Options{
-		Reconciler: reconciler,
+		MaxConcurrentReconciles: workers,
+		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err

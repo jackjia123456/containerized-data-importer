@@ -226,7 +226,7 @@ func start() {
 		klog.Errorf("Unable to setup datavolume import controller: %v", err)
 		os.Exit(1)
 	}
-	if _, err := dvc.NewUploadController(ctx, mgr, log, installerLabels); err != nil {
+	if _, err := dvc.NewUploadController(ctx, mgr, log, installerLabels, workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup datavolume upload controller: %v", err)
 		os.Exit(1)
 	}
