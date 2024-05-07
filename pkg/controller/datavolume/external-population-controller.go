@@ -19,6 +19,8 @@ package datavolume
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
+	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -57,7 +59,10 @@ type PopulatorReconciler struct {
 }
 
 // NewPopulatorController creates a new instance of the datavolume external population controller
-func NewPopulatorController(ctx context.Context, mgr manager.Manager, log logr.Logger, installerLabels map[string]string) (controller.Controller, error) {
+func NewPopulatorController(ctx context.Context, mgr manager.Manager, log logr.Logger,
+	installerLabels map[string]string,
+	workers, maxDelay int,
+) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &PopulatorReconciler{
 		ReconcilerBase: ReconcilerBase{
@@ -71,7 +76,12 @@ func NewPopulatorController(ctx context.Context, mgr manager.Manager, log logr.L
 		},
 	}
 
-	datavolumeController, err := controller.New(populatorControllerName, mgr, controller.Options{Reconciler: reconciler})
+	datavolumeController, err := controller.New(populatorControllerName, mgr, controller.Options{
+		MaxConcurrentReconciles: workers,
+		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
+	})
 	if err != nil {
 		return nil, err
 	}

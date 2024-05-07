@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
 	"net/url"
 	"path"
 	"reflect"
@@ -117,7 +118,10 @@ type importerPodArgs struct {
 }
 
 // NewImportController creates a new instance of the import controller.
-func NewImportController(mgr manager.Manager, log logr.Logger, importerImage, pullPolicy, verbose string, installerLabels map[string]string) (controller.Controller, error) {
+func NewImportController(mgr manager.Manager, log logr.Logger, importerImage, pullPolicy, verbose string,
+	installerLabels map[string]string,
+	workers, maxDelay int,
+) (controller.Controller, error) {
 	uncachedClient, err := client.New(mgr.GetConfig(), client.Options{
 		Scheme: mgr.GetScheme(),
 		Mapper: mgr.GetRESTMapper(),
@@ -140,7 +144,10 @@ func NewImportController(mgr manager.Manager, log logr.Logger, importerImage, pu
 		installerLabels: installerLabels,
 	}
 	importController, err := controller.New("import-controller", mgr, controller.Options{
-		Reconciler: reconciler,
+		MaxConcurrentReconciles: workers,
+		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err

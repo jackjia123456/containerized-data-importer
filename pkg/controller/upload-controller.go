@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
 	"reflect"
 	"strconv"
 	"strings"
@@ -646,7 +647,11 @@ func (r *UploadReconciler) ensureCertSecret(args UploadPodArgs, pod *v1.Pod) err
 }
 
 // NewUploadController creates a new instance of the upload controller.
-func NewUploadController(mgr manager.Manager, log logr.Logger, uploadImage, pullPolicy, verbose string, serverCertGenerator generator.CertGenerator, clientCAFetcher fetcher.CertBundleFetcher, installerLabels map[string]string) (controller.Controller, error) {
+func NewUploadController(mgr manager.Manager, log logr.Logger, uploadImage, pullPolicy, verbose string,
+	serverCertGenerator generator.CertGenerator, clientCAFetcher fetcher.CertBundleFetcher,
+	installerLabels map[string]string,
+	workers, maxDelay int,
+) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &UploadReconciler{
 		client:              client,
@@ -662,7 +667,10 @@ func NewUploadController(mgr manager.Manager, log logr.Logger, uploadImage, pull
 		installerLabels:     installerLabels,
 	}
 	uploadController, err := controller.New("upload-controller", mgr, controller.Options{
-		Reconciler: reconciler,
+		MaxConcurrentReconciles: workers,
+		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err

@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
 	"strconv"
 	"time"
 
@@ -72,7 +73,7 @@ func NewPvcCloneController(
 	tokenPublicKey *rsa.PublicKey,
 	tokenPrivateKey *rsa.PrivateKey,
 	installerLabels map[string]string,
-	workers int,
+	workers, maxDelay int,
 ) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &PvcCloneReconciler{
@@ -98,8 +99,10 @@ func NewPvcCloneController(
 	}
 
 	dataVolumeCloneController, err := controller.New(pvcCloneControllerName, mgr, controller.Options{
-		Reconciler:              reconciler,
 		MaxConcurrentReconciles: workers,
+		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err

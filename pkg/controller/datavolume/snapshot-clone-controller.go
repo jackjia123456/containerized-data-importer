@@ -20,6 +20,8 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"k8s.io/client-go/util/workqueue"
+	"time"
 
 	"github.com/go-logr/logr"
 	snapshotv1 "github.com/kubernetes-csi/external-snapshotter/client/v6/apis/volumesnapshot/v1"
@@ -70,7 +72,7 @@ func NewSnapshotCloneController(
 	tokenPublicKey *rsa.PublicKey,
 	tokenPrivateKey *rsa.PrivateKey,
 	installerLabels map[string]string,
-	workers int,
+	workers, maxDelay int,
 ) (controller.Controller, error) {
 	client := mgr.GetClient()
 	reconciler := &SnapshotCloneReconciler{
@@ -97,8 +99,10 @@ func NewSnapshotCloneController(
 	}
 
 	dataVolumeCloneController, err := controller.New(snapshotCloneControllerName, mgr, controller.Options{
-		Reconciler:              reconciler,
 		MaxConcurrentReconciles: workers,
+		Reconciler:              reconciler,
+		RateLimiter: workqueue.NewWithMaxWaitRateLimiter(workqueue.DefaultControllerRateLimiter(),
+			time.Duration(maxDelay)*time.Second),
 	})
 	if err != nil {
 		return nil, err

@@ -231,21 +231,24 @@ func start() {
 		os.Exit(1)
 	}
 	if _, err := dvc.NewPvcCloneController(ctx, mgr, log,
-		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels, workers); err != nil {
+		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels,
+		workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup datavolume pvc clone controller: %v", err)
 		os.Exit(1)
 	}
 	if _, err := dvc.NewSnapshotCloneController(ctx, mgr, log,
-		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels, workers); err != nil {
+		clonerImage, importerImage, pullPolicy, getTokenPublicKey(), getTokenPrivateKey(), installerLabels,
+		workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup datavolume snapshot clone controller: %v", err)
 		os.Exit(1)
 	}
-	if _, err := dvc.NewPopulatorController(ctx, mgr, log, installerLabels); err != nil {
+	if _, err := dvc.NewPopulatorController(ctx, mgr, log, installerLabels, workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup datavolume external-population controller: %v", err)
 		os.Exit(1)
 	}
 
-	if _, err := controller.NewImportController(mgr, log, importerImage, pullPolicy, verbose, installerLabels); err != nil {
+	if _, err := controller.NewImportController(mgr, log, importerImage, pullPolicy, verbose, installerLabels,
+		workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup import controller: %v", err)
 		os.Exit(1)
 	}
@@ -256,7 +259,8 @@ func start() {
 		os.Exit(1)
 	}
 
-	if _, err := controller.NewUploadController(mgr, log, uploadServerImage, pullPolicy, verbose, uploadServerCertGenerator, uploadClientBundleFetcher, installerLabels); err != nil {
+	if _, err := controller.NewUploadController(mgr, log, uploadServerImage, pullPolicy, verbose,
+		uploadServerCertGenerator, uploadClientBundleFetcher, installerLabels, workers, maxDelay); err != nil {
 		klog.Errorf("Unable to setup upload controller: %v", err)
 		os.Exit(1)
 	}
