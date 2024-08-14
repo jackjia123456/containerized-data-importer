@@ -7,12 +7,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/api/errors"
 	"kubevirt.io/containerized-data-importer/pkg/common"
 	cc "kubevirt.io/containerized-data-importer/pkg/controller/common"
 	"kubevirt.io/containerized-data-importer/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"strings"
 )
 
 // PrepClaimPhaseName is the name of the prep claim phase
@@ -125,8 +125,8 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 
 		isDeleted[podName] = true
 
-		if err := p.Client.Delete(ctx, pod); err != nil {
-			if errors.IsNotFound(err) {
+		if err2 := p.Client.Delete(ctx, pod); err2 != nil {
+			if strings.Contains(err.Error(), "not found") {
 				return nil, nil
 			}
 			return nil, err
