@@ -60,7 +60,9 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 
 	if locker != nil {
 		p.Log.V(3).Info("pod acquire lock", "podName", podName)
-		locker.TryAcquire(podName)
+		if acquired := locker.TryAcquire(podName); !acquired {
+			return nil, fmt.Errorf("not acquire lock for [%s]", podName)
+		}
 		defer locker.Release(podName)
 	}
 
