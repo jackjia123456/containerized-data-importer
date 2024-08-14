@@ -56,6 +56,14 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 	}
 
 	podName := fmt.Sprintf("prep-%s", string(p.Owner.GetUID()))
+	p.Log.V(3).Info("pod lock", "podName", podName)
+
+	if locker != nil {
+		p.Log.V(3).Info("pod acquire lock", "podName", podName)
+		locker.TryAcquire(podName)
+		defer locker.Release(podName)
+	}
+
 	pod := &corev1.Pod{}
 	podExists, err := getResource(ctx, p.Client, p.DesiredClaim.Namespace, podName, pod)
 	if err != nil {
@@ -103,14 +111,6 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 	if !podRequired && !podExists {
 		// all done finally
 		return nil, nil
-	}
-
-	p.Log.V(3).Info("pod lock", "podName", podName)
-
-	if locker != nil {
-		p.Log.V(3).Info("pod acquire lock", "podName", podName)
-		locker.TryAcquire(podName)
-		defer locker.Release(podName)
 	}
 
 	if podExists && pod.Status.Phase == corev1.PodSucceeded {
