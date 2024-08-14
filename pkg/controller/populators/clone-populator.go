@@ -285,7 +285,9 @@ func (r *ClonePopulatorReconciler) planAndExecute(ctx context.Context, log logr.
 		}
 
 		if result != nil {
-			result.RequeueAfter = 3 * time.Second
+			if result.RequeueAfter == 0 {
+				result.RequeueAfter = 3 * time.Second
+			}
 			log.V(1).Info("currently in phase, returning", "name", p.Name(), "progress", progress)
 			return *result, r.updateClonePhase(ctx, log, pvc, p.Name(), statusResults)
 		}

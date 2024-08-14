@@ -3,17 +3,15 @@ package clone
 import (
 	"context"
 	"fmt"
-
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"kubevirt.io/containerized-data-importer/pkg/common"
+	cc "kubevirt.io/containerized-data-importer/pkg/controller/common"
 	"kubevirt.io/containerized-data-importer/pkg/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	cc "kubevirt.io/containerized-data-importer/pkg/controller/common"
 )
 
 // PrepClaimPhaseName is the name of the prep claim phase
@@ -33,6 +31,12 @@ type PrepClaimPhase struct {
 }
 
 var _ Phase = &PrepClaimPhase{}
+
+var locker *util.ResourceLocks
+
+func init() {
+	locker = util.NewResourceLocks()
+}
 
 // Name returns the name of the phase
 func (p *PrepClaimPhase) Name() string {
@@ -99,6 +103,11 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 	if !podRequired && !podExists {
 		// all done finally
 		return nil, nil
+	}
+
+	if locker != nil {
+		locker.TryAcquire(podName)
+		defer locker.Release(podName)
 	}
 
 	if podExists && pod.Status.Phase == corev1.PodSucceeded {
