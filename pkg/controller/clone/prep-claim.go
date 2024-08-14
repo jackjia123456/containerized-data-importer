@@ -7,6 +7,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/kubernetes/staging/src/k8s.io/apimachinery/pkg/api/errors"
 	"kubevirt.io/containerized-data-importer/pkg/common"
 	cc "kubevirt.io/containerized-data-importer/pkg/controller/common"
 	"kubevirt.io/containerized-data-importer/pkg/util"
@@ -32,10 +33,14 @@ type PrepClaimPhase struct {
 
 var _ Phase = &PrepClaimPhase{}
 
-var locker *util.ResourceLocks
+var (
+	locker    *util.ResourceLocks
+	isDeleted map[string]bool
+)
 
 func init() {
 	locker = util.NewResourceLocks()
+	isDeleted = make(map[string]bool)
 }
 
 // Name returns the name of the phase
@@ -118,12 +123,24 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 	if podExists && pod.Status.Phase == corev1.PodSucceeded {
 		p.Log.V(3).Info("Prep pod succeeded, deleting")
 
+		isDeleted[podName] = true
+
 		if err := p.Client.Delete(ctx, pod); err != nil {
+			if errors.IsNotFound(err) {
+				return nil, nil
+			}
 			return nil, err
 		}
 	}
 
 	if podRequired && !podExists {
+
+		if isDeleted[podName] {
+			p.Log.V(3).Info("pod already deleted not need to create again", "podName", podName)
+			delete(isDeleted, podName)
+			return nil, nil
+		}
+
 		p.Log.V(3).Info("creating prep pod")
 
 		if err := p.createPod(ctx, podName, actualClaim); err != nil {
