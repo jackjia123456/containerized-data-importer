@@ -13,6 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"strings"
+	"sync"
+	"time"
 )
 
 // PrepClaimPhaseName is the name of the prep claim phase
@@ -35,12 +37,25 @@ var _ Phase = &PrepClaimPhase{}
 
 var (
 	locker    *util.ResourceLocks
-	isDeleted map[string]bool
+	isDeleted sync.Map
 )
 
 func init() {
 	locker = util.NewResourceLocks()
-	isDeleted = make(map[string]bool)
+	isDeleted = sync.Map{}
+	go func() {
+		for {
+			time.Sleep(60 * time.Second)
+			isDeleted.Range(func(key, value any) bool {
+				if v, ok := value.(*time.Time); ok {
+					if time.Since(*v) > 120*time.Second {
+						isDeleted.Delete(key)
+					}
+				}
+				return false
+			})
+		}
+	}()
 }
 
 // Name returns the name of the phase
@@ -123,7 +138,8 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 	if podExists && pod.Status.Phase == corev1.PodSucceeded {
 		p.Log.V(3).Info("Prep pod succeeded, deleting")
 
-		isDeleted[podName] = true
+		n := time.Now()
+		isDeleted.Store(podName, n)
 
 		if err2 := p.Client.Delete(ctx, pod); err2 != nil {
 			if strings.Contains(err.Error(), "not found") {
@@ -135,9 +151,8 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 
 	if podRequired && !podExists {
 
-		if isDeleted[podName] {
+		if _, ok := isDeleted.Load(podName); ok {
 			p.Log.V(3).Info("pod already deleted not need to create again", "podName", podName)
-			delete(isDeleted, podName)
 			return nil, nil
 		}
 
