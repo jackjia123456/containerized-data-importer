@@ -61,6 +61,10 @@ func (p *RebindPhase) Reconcile(ctx context.Context) (*reconcile.Result, error) 
 		return nil, fmt.Errorf("source claim does not exist")
 	}
 
+	if sourceClaim.Status.Phase == corev1.ClaimLost {
+		return nil, nil
+	}
+
 	if err := cc.Rebind(ctx, p.Client, sourceClaim, targetClaim); err != nil {
 		return nil, err
 	}
