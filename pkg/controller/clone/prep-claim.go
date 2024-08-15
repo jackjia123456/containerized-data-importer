@@ -86,6 +86,11 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 		defer locker.Release(podName)
 	}
 
+	if _, ok := isDeleted.Load(podName); ok {
+		p.Log.V(3).Info("pod already deleted not need to create again", "podName", podName)
+		return nil, nil
+	}
+
 	pod := &corev1.Pod{}
 	podExists, err := getResource(ctx, p.Client, p.DesiredClaim.Namespace, podName, pod)
 	if err != nil {
@@ -150,11 +155,6 @@ func (p *PrepClaimPhase) Reconcile(ctx context.Context) (*reconcile.Result, erro
 	}
 
 	if podRequired && !podExists {
-
-		if _, ok := isDeleted.Load(podName); ok {
-			p.Log.V(3).Info("pod already deleted not need to create again", "podName", podName)
-			return nil, nil
-		}
 
 		p.Log.V(3).Info("creating prep pod")
 
